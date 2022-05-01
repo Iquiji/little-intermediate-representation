@@ -4,6 +4,8 @@ use little_parser::{Expression, Parser, Programm};
 
 #[derive(Debug, Clone)]
 pub enum LinearInstruction {
+    // Need new list building instructions // one for init and one for adding!
+    // TODO: rethink register saving?
     Assign {
         identifier: StaticRef,
         from_reg: Register,
