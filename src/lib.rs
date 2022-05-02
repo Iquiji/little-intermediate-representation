@@ -145,13 +145,27 @@ impl Translator {
 
                 instr_buf.push(LinearInstruction::Assign {
                     identifier: static_ref,
-                    from_reg: reg_with_data_assigned,
+                    from_reg: reg_with_data_assigned.clone(),
                     scope: Scope::Current,
-                })
+                });
                 // What do we push onto the stack?! what if we define in a function? we destroy the stack balance??
+                // Just return the defines result xD
+                instr_buf.push(LinearInstruction::PushToStack{ register: reg_with_data_assigned });
             }
             Expression::Let(bindings, body) => {
                 // Assign bindings in order and then execute body untill last which is returned in a way
+                
+                // Need to build new scope we push into!
+                for binding in bindings{
+                    
+
+
+                    instr_buf.push(LinearInstruction::Assign{
+                        identifier: todo!(),
+                        from_reg: todo!(),
+                        scope: Scope::Current,
+                    });
+                }
             }
             Expression::LambdaCall(to_call, arguments) => {
                 let to_call = std::rc::Rc::try_unwrap(to_call.clone()).unwrap();
