@@ -132,6 +132,7 @@ impl Translator {
             }
             Expression::Cond(cases) => {
                 // Conditions and Branches if true
+                // Can internally just call and? or better just impl check here?
             }
             Expression::Define(global_ident, body) => {
                 // Assign to global Scope whater is the body
