@@ -10,6 +10,10 @@ pub enum LinearInstruction {
     // Inneficient but i dont care!
     NewScopeAttachedToAndReplacingCurrent,
     PopScopeAndReplaceWithUpper,
+    StaticRefToRegister {
+        static_ref: StaticRef,
+        to_reg: Register,
+    },
     PushToStack {
         register: Register,
     },
@@ -123,16 +127,50 @@ impl Translator {
             Expression::Quote(quoted) => {
                 // Quoted should be static
                 // Need to convert to StaticRef
+                fn atomtype_to_static_data(atom: little_parser::AtomTypes) -> StaticData {
+                    match atom {
+                        little_parser::AtomTypes::Integer(int) => StaticData::Integer(int),
+                        little_parser::AtomTypes::Symbol(symbol) => StaticData::Identifier(symbol),
+                        little_parser::AtomTypes::String(string) => StaticData::String(string),
+                        little_parser::AtomTypes::Boolean(boolean) => StaticData::Bool(boolean),
+                        little_parser::AtomTypes::List(list) => StaticData::List(
+                            list.iter()
+                                .map(|x| atomtype_to_static_data(x.clone()))
+                                .collect(),
+                        ),
+                    }
+                }
+
+                let static_ref_name = self.make_static_name();
+                self.static_data.insert(
+                    static_ref_name.clone(),
+                    atomtype_to_static_data(quoted.clone()),
+                );
+
+                let quoted_ref = StaticRef {
+                    refname: static_ref_name,
+                    reftype: atomtype_to_static_data(quoted),
+                };
+
+                // Somehow take the quoted data to a register? => new Command
+                let reg = self.make_reg_name();
+                instr_buf.push(LinearInstruction::StaticRefToRegister {
+                    static_ref: quoted_ref,
+                    to_reg: reg.clone(),
+                });
+                instr_buf.push(LinearInstruction::PushToStack { register: reg });
             }
             Expression::Lambda(formals, body) => {
                 // Assign formals to current Scope and then execute body untill last which is returned
                 // This just initializes the LambdaFunction! => Make new Block for Lambda
                 // Save formals names for later in StaticRef
-                // Body can be same as Let... 
+                // Body can be same as Let...
+                // how do we accept the args into the formals?
             }
             Expression::Cond(cases) => {
                 // Conditions and Branches if true
                 // Can internally just call and? or better just impl check here?
+                // Shoul add an instruction for checking booleans somehow?
             }
             Expression::Define(global_ident, body) => {
                 // Assign to global Scope whater is the body
@@ -173,7 +211,9 @@ impl Translator {
                 for binding in bindings {
                     instr_buf.extend_from_slice(&self.expr_to_instructions(binding.1));
                     let data_reg = self.make_reg_name();
-                    instr_buf.push(LinearInstruction::PopFromStack{ register: data_reg.clone() });
+                    instr_buf.push(LinearInstruction::PopFromStack {
+                        register: data_reg.clone(),
+                    });
 
                     let static_ref = StaticRef {
                         refname: self.make_static_name(),
@@ -189,13 +229,13 @@ impl Translator {
                     });
                 }
                 let body_res_reg = self.make_reg_name();
-                for body_expr in body.iter().enumerate(){
+                for body_expr in body.iter().enumerate() {
                     instr_buf.extend_from_slice(&self.expr_to_instructions(body_expr.1.clone()));
-                    instr_buf.push(LinearInstruction::PopFromStack{
+                    instr_buf.push(LinearInstruction::PopFromStack {
                         register: body_res_reg.clone(),
                     });
                 }
-                instr_buf.push(LinearInstruction::PushToStack{
+                instr_buf.push(LinearInstruction::PushToStack {
                     register: body_res_reg,
                 });
                 // Finally clean new Scope
