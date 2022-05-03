@@ -53,7 +53,7 @@ pub enum LinearInstruction {
         value: Register,
     },
     InitializeFunctionPointer {
-        function: LinearBlock,
+        function: FunctionPointer,
         from_scope: Scope,
         outpu_reg: Register,
     },
@@ -71,7 +71,7 @@ pub struct Register {
 }
 
 #[derive(Debug, Clone)]
-pub struct InitializedFunctionPointer {
+pub struct FunctionPointer {
     // Stored in Translator Hashmap for now
     actual_func: String,
 }
@@ -166,11 +166,40 @@ impl Translator {
                 // Save formals names for later in StaticRef
                 // Body can be same as Let...
                 // how do we accept the args into the formals?
+
+
+
+
+
+                // Final thing return initialized fuction pointer
+                let reg = self.make_reg_name();
+
+                let initialized_func_pointer = FunctionPointer{
+                    actual_func: todo!(),
+                };
+
+                instr_buf.push(LinearInstruction::PushToStack{
+                    register: reg,
+                });
             }
             Expression::Cond(cases) => {
                 // Conditions and Branches if true
                 // Can internally just call and? or better just impl check here?
                 // Shoul add an instruction for checking booleans somehow?
+                for case in cases {
+                    instr_buf.extend_from_slice(&self.expr_to_instructions(case.0));
+                    let reg_to_check = self.make_reg_name();
+                    instr_buf.push(LinearInstruction::PopFromStack {
+                        register: reg_to_check.clone(),
+                    });
+
+                    instr_buf.push(LinearInstruction::Cond {
+                        condition: reg_to_check,
+                        branc_if_true: Branch{
+                            program: self.expr_to_instructions(case.1),
+                        },
+                    });
+                }
             }
             Expression::Define(global_ident, body) => {
                 // Assign to global Scope whater is the body
