@@ -8,6 +8,8 @@ pub enum LinearInstruction {
     // TODO: rethink register saving?
     // Stack push pop for saving registers!
     // Inneficient but i dont care!
+    NewScopeAttachedToAndReplacingCurrent,
+    PopScopeAndReplaceWithUpper,
     PushToStack {
         register: Register,
     },
@@ -109,18 +111,24 @@ impl Translator {
             static_data: HashMap::new(),
         }
     }
+    // Prob just a series of applying expr_to_instructions
     pub fn ast_to_intermediate_representation(&mut self, ast: Programm) -> LinearBlock {
         unimplemented!()
     }
+    /// Design Note!:
+    /// Final Data is always pushed onto the stack :)
     pub fn expr_to_instructions(&mut self, expr: Expression) -> Vec<LinearInstruction> {
         let mut instr_buf = vec![];
         match expr {
             Expression::Quote(quoted) => {
                 // Quoted should be static
+                // Need to convert to StaticRef
             }
             Expression::Lambda(formals, body) => {
                 // Assign formals to current Scope and then execute body untill last which is returned
                 // This just initializes the LambdaFunction! => Make new Block for Lambda
+                // Save formals names for later in StaticRef
+                // Body can be same as Let... 
             }
             Expression::Cond(cases) => {
                 // Conditions and Branches if true
@@ -130,10 +138,11 @@ impl Translator {
                 let body_instr = &self.expr_to_instructions(
                     std::rc::Rc::<little_parser::Expression>::try_unwrap(body).unwrap(),
                 );
+                instr_buf.extend_from_slice(body_instr);
 
                 let static_ref = StaticRef {
                     refname: self.make_static_name(),
-                    reftype: StaticData::String(global_ident.clone()),
+                    reftype: StaticData::String(global_ident),
                 };
                 self.static_data
                     .insert(static_ref.refname.clone(), static_ref.reftype.clone());
@@ -150,25 +159,49 @@ impl Translator {
                 });
                 // What do we push onto the stack?! what if we define in a function? we destroy the stack balance??
                 // Just return the defines result xD
-                instr_buf.push(LinearInstruction::PushToStack{ register: reg_with_data_assigned });
+                instr_buf.push(LinearInstruction::PushToStack {
+                    register: reg_with_data_assigned,
+                });
             }
             Expression::Let(bindings, body) => {
                 // Assign bindings in order and then execute body untill last which is returned in a way
-                
-                // Need to build new scope we push into!
-                for binding in bindings{
-                    
 
+                // Need to build new scope we push into!:
+                instr_buf.push(LinearInstruction::NewScopeAttachedToAndReplacingCurrent);
 
-                    instr_buf.push(LinearInstruction::Assign{
-                        identifier: todo!(),
-                        from_reg: todo!(),
+                for binding in bindings {
+                    instr_buf.extend_from_slice(&self.expr_to_instructions(binding.1));
+                    let data_reg = self.make_reg_name();
+                    instr_buf.push(LinearInstruction::PopFromStack{ register: data_reg.clone() });
+
+                    let static_ref = StaticRef {
+                        refname: self.make_static_name(),
+                        reftype: StaticData::String(binding.0.clone()),
+                    };
+                    self.static_data
+                        .insert(static_ref.refname.clone(), static_ref.reftype.clone());
+
+                    instr_buf.push(LinearInstruction::Assign {
+                        identifier: static_ref,
+                        from_reg: data_reg,
                         scope: Scope::Current,
                     });
                 }
+                let body_res_reg = self.make_reg_name();
+                for body_expr in body.iter().enumerate(){
+                    instr_buf.extend_from_slice(&self.expr_to_instructions(body_expr.1.clone()));
+                    instr_buf.push(LinearInstruction::PopFromStack{
+                        register: body_res_reg.clone(),
+                    });
+                }
+                instr_buf.push(LinearInstruction::PushToStack{
+                    register: body_res_reg,
+                });
+                // Finally clean new Scope
+                instr_buf.push(LinearInstruction::PopScopeAndReplaceWithUpper)
             }
             Expression::LambdaCall(to_call, arguments) => {
-                let to_call = std::rc::Rc::try_unwrap(to_call.clone()).unwrap();
+                let to_call = std::rc::Rc::try_unwrap(to_call).unwrap();
                 // Call to_call (if ident -> lookup in scope,if lambda -> Direct)
                 if let Expression::Identifier(ident) = to_call {
                     let shared_reg = self.make_reg_name();
@@ -185,14 +218,14 @@ impl Translator {
                         scope: Scope::Current,
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
-                        register: shared_reg.clone(),
+                        register: shared_reg,
                     });
                     let args_list = self.make_reg_name();
                     instr_buf.push(LinearInstruction::LinkedListInit {
                         output_reg: args_list.clone(),
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
-                        register: args_list.clone(),
+                        register: args_list,
                     });
 
                     // For Arguments we can add them to the scope we push into?
@@ -213,8 +246,8 @@ impl Translator {
                     let output_reg = self.make_reg_name();
                     // Then call
                     instr_buf.push(LinearInstruction::Call {
-                        output_reg: output_reg,
-                        function_pointer: function_pointer,
+                        output_reg,
+                        function_pointer,
                         arguments: args_list.clone(),
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
@@ -240,8 +273,8 @@ impl Translator {
                     let output_reg = self.make_reg_name();
                     // Then call
                     instr_buf.push(LinearInstruction::Call {
-                        output_reg: output_reg,
-                        function_pointer: function_pointer,
+                        output_reg,
+                        function_pointer,
                         arguments: args_list.clone(),
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
@@ -266,8 +299,8 @@ impl Translator {
                     let output_reg = self.make_reg_name();
                     // Then call
                     instr_buf.push(LinearInstruction::Call {
-                        output_reg: output_reg,
-                        function_pointer: function_pointer,
+                        output_reg,
+                        function_pointer,
                         arguments: args_list.clone(),
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
