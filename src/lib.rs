@@ -1,15 +1,15 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, vec};
 
-use little_parser::{Expression, Parser, Programm};
+use little_parser::{Expression, Programm};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinearInstruction {
     // Need new list building instructions // one for init and one for adding!
     // TODO: rethink register saving?
     // Stack push pop for saving registers!
     // Inneficient but i dont care!
     // We need a Instruction for accepting formals!
-    AcceptToFormals{
+    AcceptToFormals {
         static_formals_list: StaticRef,
     },
     NewScopeAttachedToAndReplacingCurrent,
@@ -63,49 +63,52 @@ pub enum LinearInstruction {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinearBlock {
     ident: String,
     program: Vec<LinearInstruction>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Register {
     virtual_ident: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionPointer {
     // Stored in Translator Hashmap for now
     actual_func: String,
+    formals_list: StaticRef,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pointer {
     StaticData(StaticRef),
     DynamicPointer,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StaticRef {
     refname: String,
     reftype: StaticData,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Scope {
     Global,
     Current,
     Custom(Register),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Branch {
     program: Vec<LinearInstruction>,
 }
 
+#[derive(Debug)]
 pub struct Translator {
     register_counter: usize,
+    anon_lambda_counter: usize,
     static_data_counter: usize,
     static_data: HashMap<String, StaticData>,
     lambda_map: HashMap<String, LinearBlock>,
@@ -115,13 +118,28 @@ impl Translator {
         Translator {
             register_counter: 0,
             static_data_counter: 0,
+            anon_lambda_counter: 0,
             lambda_map: HashMap::new(),
             static_data: HashMap::new(),
         }
     }
     // Prob just a series of applying expr_to_instructions
     pub fn ast_to_intermediate_representation(&mut self, ast: Programm) -> LinearBlock {
-        unimplemented!()
+        let mut main = LinearBlock {
+            ident: "main".into(),
+            program: vec![],
+        };
+        match ast {
+            Programm::Expression(inner) => {
+                for expr in inner {
+                    main.program
+                        .extend_from_slice(&self.expr_to_instructions(expr));
+                }
+            }
+        }
+        self.lambda_map.insert("main".into(), main.clone());
+
+        main
     }
     /// Design Note!:
     /// Final Data is always pushed onto the stack :)
@@ -172,24 +190,65 @@ impl Translator {
                 // how do we accept the args into the formals?
                 // Make accept formals Instruction taking StaticRef and then a reg?
                 // We accept formals and push them to scope internally
+                let formals_vec = StaticData::List(
+                    formals
+                        .iter()
+                        .map(|formal| StaticData::Identifier(formal.to_string()))
+                        .collect(),
+                );
 
+                let anon_lambda_name = self.make_anon_lambda_name();
+                self.static_data
+                    .insert(anon_lambda_name.clone(), formals_vec.clone());
+
+                let formals_vec_ref = StaticRef {
+                    refname: anon_lambda_name.clone(),
+                    reftype: formals_vec,
+                };
+
+                // Init the lambda block with the coresponding name and add content later
+                let mut lambda_block = LinearBlock {
+                    ident: anon_lambda_name.clone(),
+                    program: vec![],
+                };
+
+                lambda_block
+                    .program
+                    .push(LinearInstruction::AcceptToFormals {
+                        static_formals_list: formals_vec_ref.clone(),
+                    });
 
                 // Make body
-                let mut labmda_body = self.body_to_instruction_list_with_list_to_pop_from_stack_first_in_stack_is_linked_list(body);
+                let mut labmda_body = vec![];
+                body.iter().for_each(|f| {
+                    labmda_body.extend_from_slice(&self.expr_to_instructions(f.clone()))
+                });
+
                 let return_reg = self.make_reg_name();
-                labmda_body.push(LinearInstruction::PopFromStack { register: return_reg.clone() });
+                labmda_body.push(LinearInstruction::PopFromStack {
+                    register: return_reg.clone(),
+                });
                 labmda_body.push(LinearInstruction::Return { value: return_reg });
+
+                lambda_block.program.extend_from_slice(&labmda_body);
+
+                self.lambda_map
+                    .insert(anon_lambda_name.clone(), lambda_block);
 
                 // Final thing return initialized fuction pointer
                 let reg = self.make_reg_name();
 
-                let initialized_func_pointer = FunctionPointer{
-                    actual_func: todo!(),
+                let initialized_func_pointer = FunctionPointer {
+                    actual_func: anon_lambda_name,
+                    formals_list: formals_vec_ref,
                 };
-
-                instr_buf.push(LinearInstruction::PushToStack{
-                    register: reg,
+                instr_buf.push(LinearInstruction::InitializeFunctionPointer {
+                    function: initialized_func_pointer,
+                    from_scope: Scope::Current,
+                    outpu_reg: reg.clone(),
                 });
+
+                instr_buf.push(LinearInstruction::PushToStack { register: reg });
             }
             Expression::Cond(cases) => {
                 // Conditions and Branches if true
@@ -205,7 +264,7 @@ impl Translator {
 
                     instr_buf.push(LinearInstruction::Cond {
                         condition: reg_to_check,
-                        branc_if_true: Branch{
+                        branc_if_true: Branch {
                             program: self.expr_to_instructions(case.1),
                         },
                     });
@@ -391,11 +450,11 @@ impl Translator {
                     unreachable!();
                 }
             }
-            Expression::Atom(atom) => {
+            Expression::Atom(_atom) => {
                 // Idk is this even possible
                 unimplemented!();
             }
-            Expression::Identifier(ident) => {
+            Expression::Identifier(_ident) => {
                 // Is this possible - prob yes
                 unimplemented!();
             }
@@ -407,6 +466,11 @@ impl Translator {
             virtual_ident: "r".to_owned() + &self.register_counter.to_string(),
         };
         self.register_counter += 1;
+        temp
+    }
+    fn make_anon_lambda_name(&mut self) -> String {
+        let temp = "_".to_owned() + &self.anon_lambda_counter.to_string();
+        self.anon_lambda_counter += 1;
         temp
     }
     fn make_static_name(&mut self) -> String {
@@ -442,7 +506,7 @@ impl Translator {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum StaticData {
     Bool(bool),
     Integer(i32),
@@ -453,9 +517,43 @@ enum StaticData {
 
 #[cfg(test)]
 mod tests {
+    use little_parser::Parser;
+
+    use crate::{LinearBlock, LinearInstruction, Register, StaticData, StaticRef, Translator};
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn it_works_init_1() {
+        let mut parser = Parser::init_with_string(r#"('5)"#);
+        let ast = parser.re_program();
+
+        let mut translator = Translator::default();
+
+        let incomplete_res = translator.ast_to_intermediate_representation(ast);
+
+        println!("translator: {:#?}", translator);
+
+        assert_eq!(
+            incomplete_res,
+            LinearBlock {
+                ident: "main".into(),
+                program: [
+                    LinearInstruction::StaticRefToRegister {
+                        static_ref: StaticRef {
+                            refname: "static0".into(),
+                            reftype: StaticData::Integer(5,),
+                        },
+                        to_reg: Register {
+                            virtual_ident: "r0".into(),
+                        },
+                    },
+                    LinearInstruction::PushToStack {
+                        register: Register {
+                            virtual_ident: "r0".into(),
+                        },
+                    },
+                ]
+                .to_vec(),
+            }
+        );
     }
 }
