@@ -8,6 +8,10 @@ pub enum LinearInstruction {
     // TODO: rethink register saving?
     // Stack push pop for saving registers!
     // Inneficient but i dont care!
+    // We need a Instruction for accepting formals!
+    AcceptToFormals{
+        static_formals_list: StaticRef,
+    },
     NewScopeAttachedToAndReplacingCurrent,
     PopScopeAndReplaceWithUpper,
     StaticRefToRegister {
@@ -166,10 +170,15 @@ impl Translator {
                 // Save formals names for later in StaticRef
                 // Body can be same as Let...
                 // how do we accept the args into the formals?
+                // Make accept formals Instruction taking StaticRef and then a reg?
+                // We accept formals and push them to scope internally
 
 
-
-
+                // Make body
+                let mut labmda_body = self.body_to_instruction_list_with_list_to_pop_from_stack_first_in_stack_is_linked_list(body);
+                let return_reg = self.make_reg_name();
+                labmda_body.push(LinearInstruction::PopFromStack { register: return_reg.clone() });
+                labmda_body.push(LinearInstruction::Return { value: return_reg });
 
                 // Final thing return initialized fuction pointer
                 let reg = self.make_reg_name();
@@ -186,6 +195,7 @@ impl Translator {
                 // Conditions and Branches if true
                 // Can internally just call and? or better just impl check here?
                 // Shoul add an instruction for checking booleans somehow?
+                // Can be done in cond instruction taking reg to check.
                 for case in cases {
                     instr_buf.extend_from_slice(&self.expr_to_instructions(case.0));
                     let reg_to_check = self.make_reg_name();
