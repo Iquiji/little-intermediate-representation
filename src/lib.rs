@@ -110,8 +110,8 @@ pub struct Translator {
     register_counter: usize,
     anon_lambda_counter: usize,
     static_data_counter: usize,
-    static_data: HashMap<String, StaticData>,
-    lambda_map: HashMap<String, LinearBlock>,
+    pub static_data: HashMap<String, StaticData>,
+    pub lambda_map: HashMap<String, LinearBlock>,
 }
 impl Translator {
     pub fn default() -> Translator {
