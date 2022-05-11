@@ -507,7 +507,7 @@ impl Translator {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum StaticData {
+pub enum StaticData {
     Bool(bool),
     Integer(i32),
     String(String),
