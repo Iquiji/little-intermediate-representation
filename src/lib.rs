@@ -450,9 +450,40 @@ impl Translator {
                     unreachable!();
                 }
             }
-            Expression::Atom(_atom) => {
+            Expression::Atom(atom) => {
                 // Idk is this even possible
-                unimplemented!();
+                fn atomtype_to_static_data(atom: little_parser::AtomTypes) -> StaticData {
+                    match atom {
+                        little_parser::AtomTypes::Integer(int) => StaticData::Integer(int),
+                        little_parser::AtomTypes::Symbol(symbol) => StaticData::Identifier(symbol),
+                        little_parser::AtomTypes::String(string) => StaticData::String(string),
+                        little_parser::AtomTypes::Boolean(boolean) => StaticData::Bool(boolean),
+                        little_parser::AtomTypes::List(list) => StaticData::List(
+                            list.iter()
+                                .map(|x| atomtype_to_static_data(x.clone()))
+                                .collect(),
+                        ),
+                    }
+                }
+
+                let static_ref_name = self.make_static_name();
+                self.static_data.insert(
+                    static_ref_name.clone(),
+                    atomtype_to_static_data(atom.clone()),
+                );
+
+                let atom_ref = StaticRef {
+                    refname: static_ref_name,
+                    reftype: atomtype_to_static_data(atom),
+                };
+
+                // Somehow take the atom data to a register? => new Command
+                let reg = self.make_reg_name();
+                instr_buf.push(LinearInstruction::StaticRefToRegister {
+                    static_ref: atom_ref,
+                    to_reg: reg.clone(),
+                });
+                instr_buf.push(LinearInstruction::PushToStack { register: reg });
             }
             Expression::Identifier(_ident) => {
                 // Is this possible - prob yes
