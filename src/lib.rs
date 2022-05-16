@@ -65,13 +65,13 @@ pub enum LinearInstruction {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LinearBlock {
-    ident: String,
-    program: Vec<LinearInstruction>,
+    pub ident: String,
+    pub program: Vec<LinearInstruction>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Register {
-    virtual_ident: String,
+    pub virtual_ident: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,7 +89,7 @@ pub enum Pointer {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StaticRef {
-    refname: String,
+    pub refname: String,
     reftype: StaticData,
 }
 
@@ -107,7 +107,7 @@ pub struct Branch {
 
 #[derive(Debug)]
 pub struct Translator {
-    register_counter: usize,
+    pub register_counter: usize,
     anon_lambda_counter: usize,
     static_data_counter: usize,
     pub static_data: HashMap<String, StaticData>,
@@ -494,7 +494,7 @@ impl Translator {
     }
     fn make_reg_name(&mut self) -> Register {
         let temp = Register {
-            virtual_ident: "r".to_owned() + &self.register_counter.to_string(),
+            virtual_ident: "vreg".to_owned() + &self.register_counter.to_string(),
         };
         self.register_counter += 1;
         temp
