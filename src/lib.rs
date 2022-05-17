@@ -379,8 +379,8 @@ impl Translator {
                         register: args_list.clone(),
                     });
                     let function_pointer = self.make_reg_name();
-                    instr_buf.push(LinearInstruction::LinkedListInit {
-                        output_reg: function_pointer.clone(),
+                    instr_buf.push(LinearInstruction::PopFromStack {
+                        register: function_pointer.clone(),
                     });
                     let output_reg = self.make_reg_name();
                     // Then call
@@ -406,8 +406,8 @@ impl Translator {
                         register: args_list.clone(),
                     });
                     let function_pointer = self.make_reg_name();
-                    instr_buf.push(LinearInstruction::LinkedListInit {
-                        output_reg: function_pointer.clone(),
+                    instr_buf.push(LinearInstruction::PopFromStack {
+                        register: function_pointer.clone(),
                     });
                     let output_reg = self.make_reg_name();
                     // Then call
@@ -432,8 +432,8 @@ impl Translator {
                         register: args_list.clone(),
                     });
                     let function_pointer = self.make_reg_name();
-                    instr_buf.push(LinearInstruction::LinkedListInit {
-                        output_reg: function_pointer.clone(),
+                    instr_buf.push(LinearInstruction::PopFromStack {
+                        register: function_pointer.clone(),
                     });
                     let output_reg = self.make_reg_name();
                     // Then call
