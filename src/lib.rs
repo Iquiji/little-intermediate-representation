@@ -522,8 +522,8 @@ impl Translator {
                 register: to_add_reg.clone(),
             });
             let args_list = self.make_reg_name();
-            instr_buf.push(LinearInstruction::LinkedListInit {
-                output_reg: args_list.clone(),
+            instr_buf.push(LinearInstruction::PopFromStack {
+                register: args_list.clone(),
             });
             instr_buf.push(LinearInstruction::LinkedListAdd {
                 linked_list_reg: args_list.clone(),
