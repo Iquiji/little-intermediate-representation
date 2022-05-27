@@ -77,7 +77,7 @@ pub struct Register {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionPointer {
     // Stored in Translator Hashmap for now
-    actual_func: String,
+    pub actual_func: String,
     formals_list: StaticRef,
 }
 
