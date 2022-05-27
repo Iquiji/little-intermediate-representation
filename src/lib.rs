@@ -385,12 +385,12 @@ impl Translator {
                     let output_reg = self.make_reg_name();
                     // Then call
                     instr_buf.push(LinearInstruction::Call {
-                        output_reg,
+                        output_reg: output_reg.clone(),
                         function_pointer,
-                        arguments: args_list.clone(),
+                        arguments: args_list,
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
-                        register: args_list,
+                        register: output_reg,
                     });
                 } else if let Expression::Lambda(formals, body) = to_call {
                     // Build InitializedPointer First
@@ -412,12 +412,12 @@ impl Translator {
                     let output_reg = self.make_reg_name();
                     // Then call
                     instr_buf.push(LinearInstruction::Call {
-                        output_reg,
+                        output_reg: output_reg.clone(),
                         function_pointer,
-                        arguments: args_list.clone(),
+                        arguments: args_list,
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
-                        register: args_list,
+                        register: output_reg,
                     });
                 } else if let Expression::LambdaCall(formals, body) = to_call {
                     instr_buf.extend_from_slice(
@@ -438,12 +438,12 @@ impl Translator {
                     let output_reg = self.make_reg_name();
                     // Then call
                     instr_buf.push(LinearInstruction::Call {
-                        output_reg,
+                        output_reg: output_reg.clone(),
                         function_pointer,
-                        arguments: args_list.clone(),
+                        arguments: args_list,
                     });
                     instr_buf.push(LinearInstruction::PushToStack {
-                        register: args_list,
+                        register: output_reg,
                     });
                 } else {
                     // Should be correct?!
