@@ -339,8 +339,8 @@ impl Translator {
                 // Finally clean new Scope
                 instr_buf.push(LinearInstruction::PopScopeAndReplaceWithUpper)
             }
-            Expression::LambdaCall(to_call, arguments) => {
-                let to_call = std::rc::Rc::try_unwrap(to_call).unwrap();
+            Expression::LambdaCall(mut to_call, arguments) => {
+                let to_call = std::rc::Rc::make_mut(&mut to_call).clone();
                 // Call to_call (if ident -> lookup in scope,if lambda -> Direct)
                 if let Expression::Identifier(ident) = to_call {
                     let shared_reg = self.make_reg_name();
@@ -485,9 +485,24 @@ impl Translator {
                 });
                 instr_buf.push(LinearInstruction::PushToStack { register: reg });
             }
-            Expression::Identifier(_ident) => {
-                // Is this possible - prob yes
-                unimplemented!();
+            Expression::Identifier(ident) => {
+                // Is this possible - prob yes // probably lookup element
+                let shared_reg = self.make_reg_name();
+                let static_name = self.make_static_name();
+                self.static_data
+                    .insert(static_name.clone(), StaticData::Identifier(ident.clone()));
+                // Lookup
+                instr_buf.push(LinearInstruction::Lookup {
+                    identifier: StaticRef {
+                        refname: static_name,
+                        reftype: StaticData::Identifier(ident),
+                    },
+                    to_reg: shared_reg.clone(),
+                    scope: Scope::Current,
+                });
+                instr_buf.push(LinearInstruction::PushToStack {
+                    register: shared_reg,
+                });
             }
         }
         instr_buf
