@@ -49,9 +49,13 @@ pub enum LinearInstruction {
         scope: Scope,
     },
     Cond {
+        cond_name: String,
         /// Pointer
         condition: Register,
         branc_if_true: Branch,
+    },
+    EndOfCond {
+        cond_name: String
     },
     Return {
         value: Register,
@@ -110,6 +114,7 @@ pub struct Translator {
     pub register_counter: usize,
     anon_lambda_counter: usize,
     static_data_counter: usize,
+    cond_name_counter: usize,
     pub static_data: HashMap<String, StaticData>,
     pub lambda_map: HashMap<String, LinearBlock>,
 }
@@ -119,6 +124,7 @@ impl Translator {
             register_counter: 0,
             static_data_counter: 0,
             anon_lambda_counter: 0,
+            cond_name_counter: 0,
             lambda_map: HashMap::new(),
             static_data: HashMap::new(),
         }
@@ -255,6 +261,7 @@ impl Translator {
                 // Can internally just call and? or better just impl check here?
                 // Shoul add an instruction for checking booleans somehow?
                 // Can be done in cond instruction taking reg to check.
+                let name = self.make_cond_name();
                 for case in cases {
                     instr_buf.extend_from_slice(&self.expr_to_instructions(case.0));
                     let reg_to_check = self.make_reg_name();
@@ -267,8 +274,12 @@ impl Translator {
                         branc_if_true: Branch {
                             program: self.expr_to_instructions(case.1),
                         },
+                        cond_name: name.clone(),
                     });
                 }
+                instr_buf.push(LinearInstruction::EndOfCond {
+                    cond_name: name,
+                });
             }
             Expression::Define(global_ident, body) => {
                 // Assign to global Scope whater is the body
@@ -531,6 +542,11 @@ impl Translator {
     fn make_static_name(&mut self) -> String {
         let temp = "static".to_owned() + &self.static_data_counter.to_string();
         self.static_data_counter += 1;
+        temp
+    }
+    fn make_cond_name(&mut self) -> String {
+        let temp = "cond".to_owned() + &self.static_data_counter.to_string();
+        self.cond_name_counter += 1;
         temp
     }
     fn body_to_instruction_list_with_list_to_pop_from_stack_first_in_stack_is_linked_list(
