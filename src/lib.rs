@@ -397,6 +397,15 @@ impl Translator {
                     instr_buf.extend_from_slice(
                         &self.expr_to_instructions(Expression::Lambda(formals, body)),
                     );
+        
+                    let args_list = self.make_reg_name();
+                    instr_buf.push(LinearInstruction::LinkedListInit {
+                        output_reg: args_list.clone(),
+                    });
+                    instr_buf.push(LinearInstruction::PushToStack {
+                        register: args_list,
+                    });
+
 
                     instr_buf.extend_from_slice(&self.body_to_instruction_list_with_list_to_pop_from_stack_first_in_stack_is_linked_list(arguments));
 
