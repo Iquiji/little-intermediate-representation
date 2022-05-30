@@ -102,7 +102,7 @@ pub enum Scope {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Branch {
-    program: Vec<LinearInstruction>,
+    pub program: Vec<LinearInstruction>,
 }
 
 #[derive(Debug)]
